@@ -1,0 +1,78 @@
+# ========================
+# Spring Boot / Java
+# ========================
+/target/
+/build/
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+*.log
+
+# Gradle
+.gradle/
+/build/
+
+# ========================
+# IDEs
+# ========================
+# IntelliJ
+/.idea/
+/*.iml
+/out/
+/*.ipr
+/*.iws
+
+# Eclipse
+/.classpath
+/.project
+/.settings/
+/bin/
+
+# VS Code
+/.vscode/
+
+# ========================
+# OS files
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# Logs and temp
+# ========================
+*.log
+*.tmp
+
+# ========================
+# Environment / Secrets
+# ========================
+# Spring properties
+application*.properties
+application*.yml
+.env
+
+# ========================
+# Docker
+# ========================
+# Ignore Docker build context files
+**/docker-compose.override.yml
+**/Dockerfile*
+**/docker-compose.*.yml
+**/docker/.env
+
+# ========================
+# Lombok
+# ========================
+# No generated source folder needed
+/generated/
+
+# ========================
+# PostgreSQL
+# ========================
+*.sql
+*.backup
