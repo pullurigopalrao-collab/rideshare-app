@@ -2,11 +2,13 @@ package com.rideshare.userservice.controller;
 
 import com.rideshare.userservice.dto.ApiResponse;
 import com.rideshare.userservice.dto.RegistrationRequest;
+import com.rideshare.userservice.dto.UserDto;
 import com.rideshare.userservice.entity.User;
 import com.rideshare.userservice.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,4 +33,14 @@ public class UserController {
     public ResponseEntity<List<User>> getUsers(){
         return ResponseEntity.ok(userService.getAllUsers());
     }
+
+    @GetMapping("/profile/me")
+    public ResponseEntity<UserDto> getMyProfile(Authentication authentication) {
+        String loggedInUsername = authentication.getName();
+
+        UserDto userProfile = userService.getUserByMobile(loggedInUsername);
+        return ResponseEntity.ok(userProfile);
+    }
+
+
 }

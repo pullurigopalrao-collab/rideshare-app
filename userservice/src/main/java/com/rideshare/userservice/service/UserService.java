@@ -1,13 +1,16 @@
 package com.rideshare.userservice.service;
 
-import com.rideshare.userservice.entity.Role;
-import com.rideshare.userservice.enums.RoleType;
-import com.rideshare.userservice.dto.RegistrationRequest;
 import com.rideshare.userservice.dto.ApiResponse;
+import com.rideshare.userservice.dto.RegistrationRequest;
+import com.rideshare.userservice.dto.UserDto;
+import com.rideshare.userservice.entity.Role;
 import com.rideshare.userservice.entity.User;
+import com.rideshare.userservice.enums.RoleType;
 import com.rideshare.userservice.repository.RoleRepository;
 import com.rideshare.userservice.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,6 +20,9 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+
+    @Autowired
+    private ModelMapper modelMapper;
 
     public UserService(UserRepository userRepository, RoleRepository roleRepository) {
         this.userRepository = userRepository;
@@ -45,7 +51,7 @@ public class UserService {
                     }
 
                     // Upgrade to BOTH
-                    Role bothRole = roleRepository.findByName("BOTH")
+                    Role bothRole = roleRepository.findByName(RoleType.BOTH.name())
                             .orElseThrow(() -> new RuntimeException("Role BOTH not found"));
                     existingUser.setRole(bothRole);
                     userRepository.save(existingUser);
@@ -58,14 +64,7 @@ public class UserService {
                     Role role = roleRepository.findByName(requestedRole)
                             .orElseThrow(() -> new RuntimeException("Role not found"));
 
-                    User newUser = new User();
-                    newUser.setFirstName(request.firstName());
-                    newUser.setLastName(request.lastName());
-                    newUser.setGender(request.gender());
-                    newUser.setMobileNumber(request.mobileNumber());
-                    newUser.setRole(role);
-
-                    userRepository.save(newUser);
+                    User newUser = userRepository.save(modelMapper.map(request, User.class));
 
                     log.info("New user {} registered successfully with role={}", newUser.getMobileNumber(), requestedRole);
                     return new ApiResponse(true, "Registration successful as " + requestedRole);
@@ -77,4 +76,11 @@ public class UserService {
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
+
+    public UserDto getUserByMobile(String mobileNumber) {
+        User user = userRepository.findByMobileNumber(mobileNumber)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return modelMapper.map(user, UserDto.class);
+    }
+
 }
