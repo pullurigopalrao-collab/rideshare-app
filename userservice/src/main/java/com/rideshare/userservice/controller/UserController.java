@@ -6,6 +6,7 @@ import com.rideshare.userservice.dto.UserDto;
 import com.rideshare.userservice.entity.User;
 import com.rideshare.userservice.service.UserService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -37,7 +39,7 @@ public class UserController {
     @GetMapping("/profile/me")
     public ResponseEntity<UserDto> getMyProfile(Authentication authentication) {
         String loggedInUsername = authentication.getName();
-
+        log.info("Fetching profile for user: {}", loggedInUsername);
         UserDto userProfile = userService.getUserByMobile(loggedInUsername);
         return ResponseEntity.ok(userProfile);
     }
