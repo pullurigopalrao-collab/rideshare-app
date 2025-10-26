@@ -5,6 +5,7 @@ import com.rideshare.userservice.dto.RegistrationRequest;
 import com.rideshare.userservice.dto.UserDto;
 import com.rideshare.userservice.entity.Role;
 import com.rideshare.userservice.entity.User;
+import com.rideshare.userservice.enums.RoleType;
 import com.rideshare.userservice.repository.RoleRepository;
 import com.rideshare.userservice.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class UserService {
                     String currentRole = existingUser.getRole().getName();
                     log.info("Existing user found: mobileNumber={}, role={}", existingUser.getMobileNumber(), currentRole);
 
-                    if ("BOTH".equals(currentRole)) {
+                    if (RoleType.BOTH.name().equals(currentRole)) {
                         log.warn("User {} already has BOTH roles", existingUser.getMobileNumber());
                         return new ApiResponse(false, "You already have BOTH roles. Please login.");
                     }
@@ -83,7 +84,7 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    public UserDto getUserByMobile(String mobileNumber) {
+    public UserDto getUserProfile(String mobileNumber) {
         User user = userRepository.findByMobileNumber(mobileNumber)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return modelMapper.map(user, UserDto.class);

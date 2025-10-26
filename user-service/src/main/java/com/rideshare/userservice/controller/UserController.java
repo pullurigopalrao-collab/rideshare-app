@@ -40,7 +40,7 @@ public class UserController {
     public ResponseEntity<UserDto> getMyProfile(Authentication authentication) {
         String loggedInUsername = authentication.getName();
         log.info("Fetching profile for user: {}", loggedInUsername);
-        UserDto userProfile = userService.getUserByMobile(loggedInUsername);
+        UserDto userProfile = userService.getUserProfile(loggedInUsername);
         return ResponseEntity.ok(userProfile);
     }
 
