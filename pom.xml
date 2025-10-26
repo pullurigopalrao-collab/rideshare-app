@@ -12,8 +12,8 @@
 
     <!-- Modules -->
     <modules>
-       <!-- <module>service-registry</module>
-        <module>api-gateway</module>-->
+        <module>service-registry</module>
+        <module>api-gateway</module>
         <module>user-service</module>
        <!-- <module>owner-service</module>
         <module>ride-service</module>
