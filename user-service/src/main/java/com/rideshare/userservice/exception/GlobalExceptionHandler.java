@@ -19,6 +19,9 @@ public class GlobalExceptionHandler {
     public static final String STATUS = "status";
     public static final String FIELDS = "fields";
     public static final String MESSAGE = "message";
+    public static final String VALIDATION_FAILED = "Validation Failed";
+    public static final String USER_NOT_FOUND = "User Not Found";
+    public static final String INVALID_MOBILE_NUMBER = "Invalid Mobile Number";
 
     // 🔹 Handle @Valid validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -32,7 +35,7 @@ public class GlobalExceptionHandler {
 
         response.put(TIMESTAMP, LocalDateTime.now());
         response.put(STATUS, HttpStatus.BAD_REQUEST.value());
-        response.put(ERROR, "Validation Failed");
+        response.put(ERROR, VALIDATION_FAILED);
         response.put(FIELDS, fieldErrors);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -44,10 +47,32 @@ public class GlobalExceptionHandler {
         Map<String, Object> response = new HashMap<>();
         response.put(TIMESTAMP, LocalDateTime.now());
         response.put(STATUS, HttpStatus.CONFLICT.value());
-        response.put(ERROR, "Conflict");
+        response.put(ERROR, HttpStatus.CONFLICT.getReasonPhrase());
         response.put(MESSAGE, ex.getMessage());
         return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
+
+    // Handle UserNotFoundException
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put(TIMESTAMP, LocalDateTime.now());
+        response.put(STATUS, HttpStatus.NOT_FOUND.value());
+        response.put(ERROR, USER_NOT_FOUND);
+        response.put(MESSAGE, ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(InvalidMobileNumberException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidMobileNumber(InvalidMobileNumberException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put(TIMESTAMP, LocalDateTime.now());
+        response.put(STATUS, HttpStatus.BAD_REQUEST.value());
+        response.put(ERROR, INVALID_MOBILE_NUMBER);
+        response.put(MESSAGE, ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
 
     // 🔹 Handle all other unhandled exceptions
     @ExceptionHandler(Exception.class)
@@ -55,7 +80,7 @@ public class GlobalExceptionHandler {
         Map<String, Object> response = new HashMap<>();
         response.put(TIMESTAMP, LocalDateTime.now());
         response.put(STATUS, HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put(ERROR, "Internal Server Error");
+        response.put(ERROR, HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
         response.put(MESSAGE, ex.getMessage());
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }

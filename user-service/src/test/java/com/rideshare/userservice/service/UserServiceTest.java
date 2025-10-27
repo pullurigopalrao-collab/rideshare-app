@@ -2,25 +2,31 @@ package com.rideshare.userservice.service;
 
 import com.rideshare.userservice.dto.ApiResponse;
 import com.rideshare.userservice.dto.RegistrationRequest;
+import com.rideshare.userservice.dto.UserDto;
 import com.rideshare.userservice.entity.Role;
 import com.rideshare.userservice.entity.User;
+import com.rideshare.userservice.exception.UserNotFoundException;
 import com.rideshare.userservice.repository.RoleRepository;
 import com.rideshare.userservice.repository.UserRepository;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 
+import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
     @Mock
@@ -37,12 +43,23 @@ class UserServiceTest {
 
     private Role riderRole;
     private Role bothRole;
+    private User user;
+    private UserDto userDto;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
         riderRole = new Role(1L, "RIDER", "Rider");
         bothRole = new Role(3L, "BOTH", "Both");
+
+        user = new User();
+        user.setFirstName("Gopal");
+        user.setLastName("Rao");
+        user.setMobileNumber("9885791402");
+
+        userDto = new UserDto();
+        userDto.setFirstName("Gopal");
+        userDto.setLastName("Rao");
+        userDto.setMobileNumber("9885791402");
     }
 
     // 1️⃣ Test: New user registration (RIDER)
@@ -58,7 +75,7 @@ class UserServiceTest {
         mappedUser.setMobileNumber("9999999999");
         mappedUser.setRole(riderRole);
 
-        when(modelMapper.map(any(RegistrationRequest.class), eq(User.class))).thenReturn(mappedUser);
+        //when(modelMapper.map(any(RegistrationRequest.class), eq(User.class))).thenReturn(mappedUser);
         when(userRepository.save(any(User.class))).thenReturn(mappedUser);
 
         ApiResponse response = userService.registerUser(request);
@@ -181,7 +198,64 @@ class UserServiceTest {
             userService.registerUser(req);
         });
 
-        Assertions.assertEquals("Role BOTH not found", thrown.getMessage());
+        assertEquals("Role BOTH not found", thrown.getMessage());
     }
 
+    // ✅ Test for getAllUsers()
+    @Test
+    void testGetAllUsers_ShouldReturnListOfUserDtos() {
+        when(userRepository.findAll()).thenReturn(List.of(user));
+
+        // Use doReturn to avoid PotentialStubbingProblem
+        doReturn(List.of(userDto))
+                .when(modelMapper)
+                .map(anyList(), any(Type.class));
+
+        List<UserDto> result = userService.getAllUsers();
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Gopal", result.get(0).getFirstName());
+        verify(userRepository, times(1)).findAll();
+    }
+
+
+    // ✅ Test for getUserProfile() - Success
+    @Test
+    void testGetUserProfile_ShouldReturnUserDto_WhenUserExists() {
+        Role role = new Role();
+        role.setName("RIDER");
+        user.setRole(role);
+
+        when(userRepository.findByMobileNumber("9885791402")).thenReturn(Optional.of(user));
+
+        when(modelMapper.map(any(User.class), eq(UserDto.class))).thenAnswer(invocation -> {
+            User source = invocation.getArgument(0);
+            UserDto dto = new UserDto();
+            dto.setFirstName(source.getFirstName());
+            dto.setLastName(source.getLastName());
+            dto.setGender(source.getGender());
+            dto.setMobileNumber(source.getMobileNumber());
+            dto.setRole(source.getRole() != null ? source.getRole().getName() : null);
+            return dto;
+        });
+
+        UserDto result = userService.getUserProfile("9885791402");
+
+        assertNotNull(result);
+        assertEquals("RIDER", result.getRole());
+        assertEquals("Gopal", result.getFirstName());
+        verify(userRepository, times(1)).findByMobileNumber("9885791402");
+    }
+
+    // ✅ Test for getUserProfile() - Not Found
+    @Test
+    void testGetUserProfile_ShouldThrowException_WhenUserNotFound() {
+        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class,
+                () -> userService.getUserProfile("9999999999"));
+
+        verify(userRepository, times(1)).findByMobileNumber("9999999999");
+    }
 }

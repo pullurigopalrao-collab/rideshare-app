@@ -15,7 +15,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable) // disable CSRF for API testing
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users/register", "/api/users").permitAll() // allow registration
+                        .requestMatchers("/api/users/register", "/api/users", "/api/users/admin/**").permitAll() // allow registration
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults()); // temporary basic auth for other endpoints

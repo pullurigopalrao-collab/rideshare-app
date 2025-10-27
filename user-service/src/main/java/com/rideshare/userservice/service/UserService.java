@@ -6,11 +6,13 @@ import com.rideshare.userservice.dto.UserDto;
 import com.rideshare.userservice.entity.Role;
 import com.rideshare.userservice.entity.User;
 import com.rideshare.userservice.enums.RoleType;
+import com.rideshare.userservice.exception.UserNotFoundException;
 import com.rideshare.userservice.repository.RoleRepository;
 import com.rideshare.userservice.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.modelmapper.TypeToken;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,13 +22,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final ModelMapper modelMapper;
 
-    @Autowired
-    private ModelMapper modelMapper;
-
-    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserService(UserRepository userRepository, RoleRepository roleRepository, ModelMapper modelMapper) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.modelMapper = modelMapper;
     }
 
     public ApiResponse registerUser(RegistrationRequest request) {
@@ -80,13 +81,17 @@ public class UserService {
 
 
     // ✅ Fetch all users
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserDto> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        return modelMapper.map(users, new TypeToken<List<UserDto>>() {}.getType());
     }
 
+
+    // ✅ Fetch user profile by mobile number
+    @Cacheable(value = "userProfiles", key = "#mobileNumber")
     public UserDto getUserProfile(String mobileNumber) {
         User user = userRepository.findByMobileNumber(mobileNumber)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException(mobileNumber));
         return modelMapper.map(user, UserDto.class);
     }
 
