@@ -97,6 +97,14 @@ services:
     networks:
       - rideshare-network
 
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - rideshare-network
+
 networks:
   rideshare-network:
     driver: bridge
