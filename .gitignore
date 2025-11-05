@@ -12,11 +12,15 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 *.log
+*.json
+*.gz
 
 # Gradle
 .gradle/
 /build/
-
+/splunk-data
+/splunk-otel-javaagent.jar
+/postgres-data
 # ========================
 # IDEs
 # ========================

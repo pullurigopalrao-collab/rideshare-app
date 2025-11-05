@@ -97,11 +97,42 @@ services:
     networks:
       - rideshare-network
 
+  # =========================
+  # Zipkin (Distributed Tracing)
+  # =========================
   zipkin:
     image: openzipkin/zipkin
     container_name: zipkin
     ports:
       - "9411:9411"
+    networks:
+      - rideshare-network
+
+  # =========================
+  # Splunk (Local Observability)
+  # =========================
+  splunk:
+    image: splunk/splunk:latest
+    container_name: splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_PASSWORD=Admin@12345
+      - SPLUNK_HTTP_ENABLE_HEC=true
+      - SPLUNK_HEC_TOKEN=e10bfb75-56ed-4f69-a790-6d9ff26b5ce3
+      - SPLUNK_ADD=tcp 1514
+    ports:
+      - "8000:8000"   # Web UI
+      - "8088:8088"   # HEC endpoint
+      - "8089:8089"   # Management
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    volumes:
+      - ./splunk-data:/opt/splunk/var
     networks:
       - rideshare-network
 
