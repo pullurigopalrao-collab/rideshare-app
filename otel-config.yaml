@@ -6,6 +6,10 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+  filelog/application_logs:
+    include: ["/logs/*.json"]
+    start_at: beginning
+
 processors:
   batch:
 
@@ -25,15 +29,13 @@ exporters:
 service:
   pipelines:
     logs:
-      receivers: [otlp]
+      receivers: [otlp, filelog/application_logs]
       processors: [batch]
       exporters: [splunk_hec, debug]
-
     traces:
       receivers: [otlp]
       processors: [batch]
       exporters: [splunk_hec, debug]
-
     metrics:
       receivers: [otlp]
       processors: [batch]
