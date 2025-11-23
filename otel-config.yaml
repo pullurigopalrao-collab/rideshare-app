@@ -1,3 +1,9 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+    check_collector_pipeline:
+      enabled: false
+
 receivers:
   otlp:
     protocols:
@@ -6,37 +12,19 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-  filelog/application_logs:
-    include: ["/logs/*.json"]
-    start_at: beginning
-
-processors:
-  batch:
-
 exporters:
-  splunk_hec:
-    token: "3a90c64b-7f12-4db8-a9b3-7e2732001405"
-    endpoint: "https://host.docker.internal:8088/services/collector"
-    source: "rideshare-hec"
-    sourcetype: "_json"
-    index: "main"
-    tls:
-      insecure_skip_verify: true
-
   debug:
     verbosity: detailed
 
 service:
+  extensions: [health_check]
   pipelines:
-    logs:
-      receivers: [otlp, filelog/application_logs]
-      processors: [batch]
-      exporters: [splunk_hec, debug]
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [splunk_hec, debug]
+      exporters: [debug]
     metrics:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [splunk_hec, debug]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [debug]

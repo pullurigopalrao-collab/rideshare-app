@@ -1,0 +1,158 @@
+# =========================================
+# API Gateway - application.yml
+# Environment: Docker / Vault Integrated
+# =========================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    # -------------------------------------
+    # GATEWAY CONFIGURATION
+    # -------------------------------------
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1  # ensures /api/users maps correctly to /users in user-service
+
+    # -------------------------------------
+    # VAULT CONFIGURATION (Secrets from Vault)
+    # -------------------------------------
+    vault:
+      uri: ${VAULT_ADDR}
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}
+      kv:
+        enabled: true
+        backend: rideshare
+      connection-timeout: 5000
+      read-timeout: 5000
+
+  # -------------------------------------
+  # DATA SOURCES & SECRET MANAGEMENT
+  # -------------------------------------
+  datasource:
+    url: jdbc:postgresql://postgres:5432/authdb
+    username: ${db.username}
+    password: ${db.password}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: ${redis.password}
+
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap}
+
+  # -------------------------------------
+  # JWT KEYS (Fetched from Vault)
+  # -------------------------------------
+  jwt:
+    private-key: ${jwt.private-key}
+    public-key: ${jwt.public-key}
+
+  # -------------------------------------
+  # ZIPKIN (Distributed Tracing)
+  # -------------------------------------
+  zipkin:
+    base-url: http://zipkin:9411
+
+# -------------------------------------
+# SPRING CLOUD EUREKA CONFIG
+# -------------------------------------
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://service-registry:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+# -------------------------------------
+# MANAGEMENT / OBSERVABILITY CONFIG
+# -------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers,env,trace
+
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+    exporter:
+      otlp:
+        # ✅ Send traces to the Splunk OTEL Collector inside Docker network
+        endpoint: http://splunk-otel-collector:4318
+
+  metrics:
+    export:
+      otlp:
+        enabled: true
+        # ✅ Send metrics to collector
+        endpoint: http://splunk-otel-collector:4318/v1/metrics
+        step: 10s
+        headers:
+          Authorization: "Bearer e10bfb75-56ed-4f69-a790-6d9ff26b"
+
+  otlp:
+    logs:
+      export:
+        enabled: true
+        # ✅ Send logs to the same collector (optional)
+        endpoint: http://splunk-otel-collector:4318/v1/logs
+
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+
+  propagation:
+    type: W3C
+
+
+# -------------------------------------
+# LOGGING CONFIGURATION
+# -------------------------------------
+logging:
+  file:
+    name: logs/${spring.application.name}.json
+
+  pattern:
+    level: "%5p [${spring.application.name:}, traceId=%X{traceId:-}, spanId=%X{spanId:-}]"
+
+  level:
+    root: INFO
+    com.rideshare: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.hibernate.SQL: INFO
+    com.splunk.logging: INFO
+    io.opentelemetry.exporter.otlp: DEBUG
+    io.micrometer.tracing: DEBUG
+
+  config: classpath:logback-spring.xml
+
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 5
+
+# -------------------------------------
+# OPTIONAL: ACTUATOR ENDPOINTS PATH
+# -------------------------------------
+management.endpoints.web.base-path: /actuator
+management.endpoint.health.show-details: always

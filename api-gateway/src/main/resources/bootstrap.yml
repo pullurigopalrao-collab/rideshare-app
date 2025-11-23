@@ -1,0 +1,23 @@
+# ======================================================
+# User-Service - bootstrap.yml
+# This loads Vault configuration BEFORE application.yml
+# ======================================================
+spring:
+  application:
+    name: api-gateway
+
+  config:
+    import: vault://
+
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR}
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}
+      fail-fast: true
+      kv:
+        enabled: true
+        backend: rideshare
+        default-context: application
+        profile-separator: /
+

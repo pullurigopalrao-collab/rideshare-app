@@ -1,26 +1,23 @@
 # ========================
-# Spring Boot / Java
+# Build output
 # ========================
 /target/
 /build/
 
-# Maven
+# Maven generated files
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
 pom.xml.next
 release.properties
 dependency-reduced-pom.xml
+
+# Logs and temp
 *.log
+*.tmp
 *.json
 *.gz
 
-# Gradle
-.gradle/
-/build/
-/splunk-data
-/splunk-otel-javaagent.jar
-/postgres-data
 # ========================
 # IDEs
 # ========================
@@ -40,43 +37,56 @@ dependency-reduced-pom.xml
 # VS Code
 /.vscode/
 
-# ========================
-# OS files
-# ========================
+# macOS / Windows OS junk
 .DS_Store
 Thumbs.db
 
 # ========================
-# Logs and temp
+# Container / Docker
 # ========================
-*.log
-*.tmp
-
-# ========================
-# Environment / Secrets
-# ========================
-# Spring properties
-application*.properties
-application*.yml
-.env
-
-# ========================
-# Docker
-# ========================
-# Ignore Docker build context files
-**/docker-compose.override.yml
+docker-compose.override.yml
 **/Dockerfile*
 **/docker-compose.*.yml
 **/docker/.env
 
+# Splunk / OTEL
+/splunk-data/
+/splunk-otel-javaagent.jar
+
+# PostgreSQL local volumes
+/postgres-data/
+
 # ========================
-# Lombok
+# Secrets / Environment
 # ========================
-# No generated source folder needed
+.env
+*.env
+
+# Spring Boot secrets (optional—use with caution)
+application-local.properties
+application-local.yml
+
+# ========================
+# Vault: MUST NOT BE COMMITTED
+# ========================
+vault/
+vault/data/
+vault/core/
+vault/logs/
+vault/file-seal/
+.vault-token
+vault/vault.env
+vault/vault-init.sh
+vault/*.pem
+vault/**/*.pem
+
+# ========================
+# Generated
+# ========================
 /generated/
 
 # ========================
-# PostgreSQL
+# SQL
 # ========================
 *.sql
 *.backup

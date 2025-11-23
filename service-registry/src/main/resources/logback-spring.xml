@@ -1,18 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- read spring.application.name early -->
+
+    <!-- Read service name -->
     <springProperty name="appName" source="spring.application.name"/>
-    <!-- fallback to 'application' if appName is missing -->
     <property name="LOG_FILE" value="logs/${appName:-application}.json"/>
 
+    <!-- ===== Console Appender ===== -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [${appName:-}, trace=%X{traceId:-}, span=%X{spanId:-}] %logger{36} - %msg%n</pattern>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [${appName:-}, trace=%X{traceId:-}, span=%X{spanId:-}] %logger{36} - %msg%n
+            </pattern>
         </encoder>
     </appender>
 
+    <!-- ===== File Appender ===== -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <!-- IMPORTANT: absolute path -->
         <file>${LOG_FILE}</file>
+
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
             <providers>
                 <timestamp>
@@ -34,13 +41,16 @@
                 </pattern>
             </providers>
         </encoder>
+
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- ABSOLUTE PATH -->
             <fileNamePattern>logs/${appName}-%d{yyyy-MM-dd}.json</fileNamePattern>
             <maxHistory>7</maxHistory>
         </rollingPolicy>
+
     </appender>
 
-
+    <!-- ===== Root Logger ===== -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>

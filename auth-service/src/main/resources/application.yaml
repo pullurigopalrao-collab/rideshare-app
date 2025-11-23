@@ -1,0 +1,128 @@
+# ======================================================
+# Auth-Service - application.yml
+# Environment: Docker / Vault Integrated
+# ======================================================
+
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+
+  # ------------------------------------------------------
+  # DATABASE CONFIGURATION (PostgreSQL + Vault)
+  # ------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://postgres:5432/auth_db
+    username: ${db.username}
+    password: ${db.password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Kolkata
+  # ------------------------------------------------------
+  # REDIS CONFIGURATION (Vault managed)
+  # ------------------------------------------------------
+  data:
+    redis:
+      host: redis
+      port: 6379
+      password: ${redis.password}
+
+  # ------------------------------------------------------
+  # KAFKA CONFIGURATION (Vault managed)
+  # ------------------------------------------------------
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: auth-service
+      auto-offset-reset: latest
+
+
+
+  # ------------------------------------------------------
+  # JWT CONFIGURATION (Vault managed)
+  # ------------------------------------------------------
+  security:
+    jwt:
+      private-key: ${jwt.private-key-file}
+      public-key: ${jwt.public-key-file}
+      expiration-seconds: 3600
+
+# ------------------------------------------------------
+# OPENTELEMETRY / OTLP EXPORTERS (Metrics + Traces)
+# ------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers,env,trace
+
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+    exporter:
+      otlp:
+        # ✅ Send traces to the Splunk OTEL Collector inside Docker network
+        endpoint: http://splunk-otel-collector:4318
+
+  metrics:
+    export:
+      otlp:
+        enabled: true
+        # ✅ Send metrics to collector
+        endpoint: http://splunk-otel-collector:4318/v1/metrics
+        step: 10s
+        headers:
+          Authorization: "Bearer e10bfb75-56ed-4f69-a790-6d9ff26b"
+
+  otlp:
+    logs:
+      export:
+        enabled: true
+        # ✅ Send logs to the same collector (optional)
+        endpoint: http://splunk-otel-collector:4318/v1/logs
+
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+
+  propagation:
+    type: W3C
+
+
+  observations:
+    key-values:
+      service.name: auth-service
+      service.namespace: rideshare
+      environment: dev
+
+# ------------------------------------------------------
+# LOGGING CONFIGURATION
+# ------------------------------------------------------
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    io.opentelemetry: INFO
+    org.hibernate.SQL: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [traceId=%X{traceId:-}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/${spring.application.name}.json
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 5
