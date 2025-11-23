@@ -1,0 +1,83 @@
+# ======================================================
+# Service Registry (Eureka Server)
+# Environment: Docker / Vault Integrated
+# ======================================================
+
+spring:
+  application:
+    name: service-registry
+
+
+server:
+  port: 8761  # Eureka dashboard port
+  servlet:
+    context-path: /
+
+# ------------------------------------------------------
+# EUREKA SERVER CONFIGURATION
+# ------------------------------------------------------
+eureka:
+  client:
+    register-with-eureka: false   # The registry does NOT register itself
+    fetch-registry: false         # It does not fetch from another registry
+  server:
+    wait-time-in-ms-when-sync-empty: 0
+# ------------------------------------------------------
+# MANAGEMENT / OBSERVABILITY CONFIG
+# ------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,loggers,env,trace
+
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+    exporter:
+      otlp:
+        # ✅ Send traces to the Splunk OTEL Collector inside Docker network
+        endpoint: http://splunk-otel-collector:4318
+
+  metrics:
+    export:
+      otlp:
+        enabled: true
+        # ✅ Send metrics to collector
+        endpoint: http://splunk-otel-collector:4318/v1/metrics
+        step: 10s
+        headers:
+          Authorization: "Bearer e10bfb75-56ed-4f69-a790-6d9ff26b"
+
+  otlp:
+    logs:
+      export:
+        enabled: true
+        # ✅ Send logs to the same collector (optional)
+        endpoint: http://splunk-otel-collector:4318/v1/logs
+
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+
+  propagation:
+    type: W3C
+
+
+# ------------------------------------------------------
+# LOGGING CONFIGURATION
+# ------------------------------------------------------
+logging:
+  file:
+    name: tmp/logs/${spring.application.name}.json
+  pattern:
+    level: "%5p [${spring.application.name:}, traceId=%X{traceId:-}, spanId=%X{spanId:-}]"
+  level:
+    root: INFO
+    com.netflix.discovery: DEBUG
+    io.opentelemetry: INFO
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 5

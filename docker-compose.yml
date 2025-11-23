@@ -2,7 +2,155 @@ version: "3.9"
 
 services:
   # =========================
-  # PostgreSQL
+  # Service Registry (Eureka)
+  # =========================
+  service-registry:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: ./service-registry/Dockerfile
+    container_name: service-registry
+    depends_on:
+      splunk-otel-collector:
+        condition: service_started
+      vault:
+        condition: service_started
+    environment:
+      - _JAVA_OPTIONS=-Xmx256m
+      - SPRING_APPLICATION_NAME=service-registry
+      - SPRING_CLOUD_VAULT_URI=${VAULT_ADDR}
+      - SPRING_CLOUD_VAULT_TOKEN=${VAULT_TOKEN}
+      - JAVA_OPTS=-javaagent:/app/splunk-otel-javaagent.jar -Dotel.resource.attributes=service.name=service-registry,service.namespace=rideshare,environment=dev -Dotel.exporter.otlp.endpoint=http://splunk-otel-collector:4318 -Dotel.exporter.otlp.protocol=http/protobuf
+    ports:
+      - "8761:8761"
+    networks:
+      - rideshare-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    volumes:
+      - ./splunk-otel-javaagent.jar:/app/splunk-otel-javaagent.jar
+      #- ./logs/service-registry:/app/logs
+
+  # =========================
+  # API Gateway
+  # =========================
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      service-registry:
+        condition: service_started
+      splunk-otel-collector:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    networks:
+      - rideshare-network
+    environment:
+      - SPRING_APPLICATION_NAME=api-gateway
+      - JAVA_OPTS=-javaagent:/app/splunk-otel-javaagent.jar -Dotel.resource.attributes=service.name=api-gateway,service.namespace=rideshare,environment=dev -Dotel.exporter.otlp.endpoint=http://splunk-otel-collector:4318 -Dotel.exporter.otlp.protocol=http/protobuf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    volumes:
+      - ./splunk-otel-javaagent.jar:/app/splunk-otel-javaagent.jar
+     # - ./logs/api-gateway:/app/logs
+      - ./otel-config.yaml:/tmp/config.yaml
+
+  # =========================
+  # Auth Service
+  # =========================
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./auth-service/Dockerfile
+    container_name: auth-service
+    mem_limit: 750m
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_started }
+      vault: { condition: service_started }
+      vault-unsealer: { condition: service_started }
+      service-registry: { condition: service_healthy }
+      splunk-otel-collector: { condition: service_started }
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_APPLICATION_NAME: auth-service
+      SPRING_CLOUD_VAULT_URI: ${VAULT_ADDR}
+      SPRING_CLOUD_VAULT_TOKEN: ${VAULT_TOKEN}
+      JAVA_OPTS: >
+        -Xms256m -Xmx512m
+        -javaagent:/app/splunk-otel-javaagent.jar
+        -Dotel.exporter.otlp.endpoint=http://splunk-otel-collector:4318
+        -Dotel.exporter.otlp.protocol=http/protobuf
+        -Dotel.resource.attributes=service.name=auth-service,service.namespace=rideshare,environment=dev
+    networks:
+      - rideshare-network
+    volumes:
+      - ./splunk-otel-javaagent.jar:/app/splunk-otel-javaagent.jar
+      #- ./logs/auth-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  # =========================
+  # User Service
+  # =========================
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: user-service
+    mem_limit: 1024m
+    depends_on:
+      vault: { condition: service_started }
+      vault-unsealer: { condition: service_started }
+      splunk-otel-collector: { condition: service_started }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_started }
+      service-registry: { condition: service_healthy }
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_APPLICATION_NAME: user-service
+      SPRING_CLOUD_VAULT_URI: ${VAULT_ADDR}
+      SPRING_CLOUD_VAULT_TOKEN: ${VAULT_TOKEN}
+      JAVA_OPTS: >
+        -Xms256m -Xmx512m
+        -javaagent:/app/splunk-otel-javaagent.jar
+        -Dotel.exporter.otlp.endpoint=http://splunk-otel-collector:4318
+        -Dotel.exporter.otlp.protocol=http/protobuf
+        -Dotel.resource.attributes=service.name=user-service,service.namespace=rideshare,environment=dev
+    networks:
+      - rideshare-network
+    volumes:
+      - ./splunk-otel-javaagent.jar:/app/splunk-otel-javaagent.jar
+      #- ./logs/user-service:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  # =========================
+  # PostgreSQL, Redis, Kafka, Vault (Infrastructure)
   # =========================
   postgres:
     image: postgres:15
@@ -18,10 +166,13 @@ services:
       - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
       - rideshare-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # =========================
-  # Redis
-  # =========================
   redis:
     image: redis:7
     container_name: redis
@@ -30,10 +181,12 @@ services:
       - "6379:6379"
     networks:
       - rideshare-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # =========================
-  # Zookeeper (for Kafka)
-  # =========================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.0
     container_name: zookeeper
@@ -44,9 +197,6 @@ services:
     networks:
       - rideshare-network
 
-  # =========================
-  # Kafka
-  # =========================
   kafka:
     image: confluentinc/cp-kafka:7.3.0
     container_name: kafka
@@ -64,9 +214,6 @@ services:
     networks:
       - rideshare-network
 
-  # =========================
-  # Kafka UI (Dashboard)
-  # =========================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -77,26 +224,101 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: rideshare-cluster
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_READONLY: "false"
     networks:
       - rideshare-network
 
-  # =========================
-  # pgAdmin (UI for PostgreSQL)
-  # =========================
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: vault
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@rideshare.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_UI: "true"
     ports:
-      - "5050:80"
-    depends_on:
-      - postgres
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    command: vault server -config=/vault/config/vault-config.json
+    volumes:
+      - ./vault/config:/vault/config
+      - ./vault/data:/vault/data
+      - ./vault/policies:/vault/policies
+      - ./vault:/vault
     networks:
       - rideshare-network
+
+
+  vault-unsealer:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.vault-unsealer
+    container_name: vault-unsealer
+    depends_on:
+      vault: { condition: service_started }
+    networks:
+      - rideshare-network
+    volumes:
+      - ./vault:/vault
+    entrypoint: /bin/sh -c "/vault/unseal.sh"
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - rideshare-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 9411 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =========================
+  # Splunk (Local Observability)
+  # =========================
+  splunk:
+    image: splunk/splunk:latest
+    container_name: splunk
+    environment:
+      - SPLUNK_START_ARGS=--accept-license
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_PASSWORD=Admin@12345
+      - SPLUNK_HTTP_ENABLE_HEC=true
+      - SPLUNK_HEC_TOKEN=e10bfb75-56ed-4f69-a790-6d9ff26b5ce3
+      - SPLUNK_ADD=tcp 1514
+    ports:
+      - "8000:8000"   # Web UI
+      - "8088:8088"   # HEC endpoint
+      - "8089:8089"   # Management
+    restart: unless-stopped
+    volumes:
+      - splunk-data:/opt/splunk/var
+    networks:
+      - rideshare-network
+
+  splunk-otel-collector:
+    image: quay.io/signalfx/splunk-otel-collector:latest
+    container_name: splunk-otel-collector
+    ports:
+      - "4317-4318:4317-4318"
+    networks:
+      - rideshare-network
+    volumes:
+      - ./otel-config.yaml:/tmp/config.yaml
+    command: [ "--config", "/tmp/config.yaml" ]
+    healthcheck:
+      test: [ "CMD", "/otelcol", "--help" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
 
 networks:
   rideshare-network:
     driver: bridge
+
+volumes:
+  splunk-data:
