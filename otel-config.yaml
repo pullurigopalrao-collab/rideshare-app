@@ -8,23 +8,42 @@ receivers:
   otlp:
     protocols:
       grpc:
-        endpoint: 0.0.0.0:4317
+        endpoint: "0.0.0.0:4317"
       http:
-        endpoint: 0.0.0.0:4318
+        endpoint: "0.0.0.0:4318"
+  # Corrected receiver for your specific user-service.json log file
+  filelog/userapp:
+    include: [ /app/logs/user-service.json ]
+    start_at: beginning
+    operators:
+      - type: json_parser
+  # --- CORRECT INDENTATION APPLIED HERE ---
+  filelog/authapp:
+    include: [ /app/logs/auth-service.json ]
+    start_at: beginning
+    operators:
+      - type: json_parser
 
 exporters:
+  splunk_hec:
+    endpoint: "https://splunk:8088/services/collector/event"
+    source: "rideshare"
+    sourcetype: "otel_logs"
+    index: "main"
+    tls:
+      insecure_skip_verify: true
   debug:
-    verbosity: detailed
+    verbosity: normal
 
 service:
   extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [splunk_hec]
     metrics:
       receivers: [otlp]
-      exporters: [debug]
+      exporters: [splunk_hec]
     logs:
-      receivers: [otlp]
-      exporters: [debug]
+      receivers: [otlp, filelog/userapp, filelog/authapp]
+      exporters: [splunk_hec, debug]
