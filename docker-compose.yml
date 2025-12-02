@@ -87,26 +87,30 @@ services:
     ports:
       - "8081:8081"
     environment:
+      # Use dedicated environment variables for reliability:
       SPRING_APPLICATION_NAME: auth-service
       SPRING_CLOUD_VAULT_URI: ${VAULT_ADDR}
       SPRING_CLOUD_VAULT_TOKEN: ${VAULT_TOKEN}
-      JAVA_OPTS: >
-        -Xms256m -Xmx512m
-        -javaagent:/app/splunk-otel-javaagent.jar
-        -Dotel.exporter.otlp.endpoint=http://splunk-otel-collector:4318
-        -Dotel.exporter.otlp.protocol=http/protobuf
-        -Dotel.resource.attributes=service.name=auth-service,service.namespace=rideshare,environment=dev
+      # This is the key fix for the metrics error:
+      MANAGEMENT_OTLP_METRICS_ENDPOINT: "http://splunk-otel-collector:4318/v1/metrics"
+      # OTel agent default endpoint (for logs/traces):
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://splunk-otel-collector:4318"
+
+      # Keep JAVA_OPTS simple for JVM args only (the Dockerfile ENV JAVA_OPTS is used here)
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+
     networks:
       - rideshare-network
     volumes:
       - ./splunk-otel-javaagent.jar:/app/splunk-otel-javaagent.jar
       #- ./logs/auth-service:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 45s
+
 
   # =========================
   # User Service
@@ -128,26 +132,39 @@ services:
     ports:
       - "8082:8082"
     environment:
+      # Standard Spring/App Environment Variables
       SPRING_APPLICATION_NAME: user-service
       SPRING_CLOUD_VAULT_URI: ${VAULT_ADDR}
       SPRING_CLOUD_VAULT_TOKEN: ${VAULT_TOKEN}
+
+      # OpenTelemetry Configuration Variables (Use these instead of -D properties)
+      SIGNALFX_LOGS_INJECTION: "true"
+      OTEL_LOGS_EXPORTER: "otlp"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://splunk-otel-collector:4318"
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=user-service,service.namespace=rideshare,environment=dev"
+      OTEL_INSTRUMENTATION_LOGBACK_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+      OTEL_JAVAAGENT_LOGGING_LEVEL: "DEBUG"
+
+      # Keep JAVA_OPTS clean for JVM tuning only, referencing the agent path
       JAVA_OPTS: >
         -Xms256m -Xmx512m
         -javaagent:/app/splunk-otel-javaagent.jar
-        -Dotel.exporter.otlp.endpoint=http://splunk-otel-collector:4318
-        -Dotel.exporter.otlp.protocol=http/protobuf
-        -Dotel.resource.attributes=service.name=user-service,service.namespace=rideshare,environment=dev
+        # Removed conflicting -D properties here
+
     networks:
       - rideshare-network
     volumes:
+      # Mount the agent and logs
       - ./splunk-otel-javaagent.jar:/app/splunk-otel-javaagent.jar
-      #- ./logs/user-service:/app/logs
+      - ./logs/user-service:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 45s
+    command: sh -c "java $JAVA_OPTS -jar app.jar"
 
   # =========================
   # PostgreSQL, Redis, Kafka, Vault (Infrastructure)
@@ -301,20 +318,22 @@ services:
   splunk-otel-collector:
     image: quay.io/signalfx/splunk-otel-collector:latest
     container_name: splunk-otel-collector
-    ports:
-      - "4317-4318:4317-4318"
-    networks:
-      - rideshare-network
+    command: [ "--config", "/tmp/config.yaml" ]
     volumes:
       - ./otel-config.yaml:/tmp/config.yaml
-    command: [ "--config", "/tmp/config.yaml" ]
+      - ./logs/user-service:/app/logs:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    networks:
+      - rideshare-network
     healthcheck:
       test: [ "CMD", "/otelcol", "--help" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 45s
-
 
 networks:
   rideshare-network:
