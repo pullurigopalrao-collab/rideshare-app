@@ -26,6 +26,7 @@ receivers:
 
 exporters:
   splunk_hec:
+    token: "e10bfb75-56ed-4f69-a790-6d9ff26b5ce3"
     endpoint: "https://splunk:8088/services/collector/event"
     source: "rideshare"
     sourcetype: "otel_logs"
