@@ -12,17 +12,12 @@ receivers:
       http:
         endpoint: "0.0.0.0:4318"
   # Corrected receiver for your specific user-service.json log file
-  filelog/userapp:
-    include: [ /app/logs/user-service.json ]
+  filelog:
+    include: [ "/app/logs/**/*.json" ]
     start_at: beginning
     operators:
       - type: json_parser
-  # --- CORRECT INDENTATION APPLIED HERE ---
-  filelog/authapp:
-    include: [ /app/logs/auth-service.json ]
-    start_at: beginning
-    operators:
-      - type: json_parser
+
 
 exporters:
   splunk_hec:
@@ -46,5 +41,5 @@ service:
       receivers: [otlp]
       exporters: [splunk_hec]
     logs:
-      receivers: [otlp, filelog/userapp, filelog/authapp]
+      receivers: [otlp, filelog]
       exporters: [splunk_hec, debug]

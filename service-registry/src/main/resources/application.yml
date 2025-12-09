@@ -70,7 +70,7 @@ management:
 # ------------------------------------------------------
 logging:
   file:
-    name: tmp/logs/${spring.application.name}.json
+    name: logs/${spring.application.name}.json
   pattern:
     level: "%5p [${spring.application.name:}, traceId=%X{traceId:-}, spanId=%X{spanId:-}]"
   level:
