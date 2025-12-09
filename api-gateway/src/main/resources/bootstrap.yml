@@ -1,5 +1,5 @@
 # ======================================================
-# User-Service - bootstrap.yml
+# Api-Gateway - bootstrap.yml
 # This loads Vault configuration BEFORE application.yml
 # ======================================================
 spring:

@@ -23,8 +23,8 @@ spring:
           uri: lb://user-service
           predicates:
             - Path=/api/users/**
-          filters:
-            - StripPrefix=1  # ensures /api/users maps correctly to /users in user-service
+#          filters:
+#            - StripPrefix=1  # ensures /api/users maps correctly to /users in user-service
 
     # -------------------------------------
     # VAULT CONFIGURATION (Secrets from Vault)
@@ -81,6 +81,7 @@ eureka:
       defaultZone: http://service-registry:8761/eureka/
     register-with-eureka: true
     fetch-registry: true
+    enabled: true
 
 # -------------------------------------
 # MANAGEMENT / OBSERVABILITY CONFIG
@@ -128,24 +129,23 @@ management:
 # -------------------------------------
 # LOGGING CONFIGURATION
 # -------------------------------------
+
 logging:
   file:
+    io.micrometer.tracing: INFO
     name: logs/${spring.application.name}.json
-
   pattern:
     level: "%5p [${spring.application.name:}, traceId=%X{traceId:-}, spanId=%X{spanId:-}]"
+    console: "%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([${spring.application.name:-},%X{traceId:-},%X{spanId:-}]){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
 
   level:
     root: INFO
     com.rideshare: INFO
-    org.springframework.cloud.gateway: DEBUG
     org.hibernate.SQL: INFO
     com.splunk.logging: INFO
-    io.opentelemetry.exporter.otlp: DEBUG
-    io.micrometer.tracing: DEBUG
-
-  config: classpath:logback-spring.xml
-
+    io.opentelemetry.exporter.otlp: INFO
+    reactor.netty.http.server.AccessLog: INFO
+    org.springframework.cloud.gateway: DEBUG
   logback:
     rollingpolicy:
       max-file-size: 10MB

@@ -63,44 +63,44 @@ spring:
 # ------------------------------------------------------
 # OPENTELEMETRY / OTLP EXPORTERS (Metrics + Traces)
 # ------------------------------------------------------
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,loggers,env,trace
-
-  tracing:
-    enabled: true
-    sampling:
-      probability: 1.0
-    exporter:
-      otlp:
-        # ✅ Send traces to the Splunk OTEL Collector inside Docker network
-        endpoint: http://splunk-otel-collector:4318
-
-  metrics:
-    export:
-      otlp:
-        enabled: true
-        # ✅ Send metrics to collector
-        endpoint: http://splunk-otel-collector:4318/v1/metrics
-        step: 10s
-        headers:
-          Authorization: "Bearer e10bfb75-56ed-4f69-a790-6d9ff26b"
-
-  otlp:
-    logs:
-      export:
-        enabled: true
-        # ✅ Send logs to the same collector (optional)
-        endpoint: http://splunk-otel-collector:4318/v1/logs
-
+#management:
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health,info,metrics,loggers,env,trace
+#
+#  tracing:
+#    enabled: true
+#    sampling:
+#      probability: 1.0
+#    exporter:
+#      otlp:
+#        # ✅ Send traces to the Splunk OTEL Collector inside Docker network
+#        endpoint: http://splunk-otel-collector:4318
+#
+#  metrics:
+#    export:
+#      otlp:
+#        enabled: true
+#        # ✅ Send metrics to collector
+#        endpoint: http://splunk-otel-collector:4318/v1/metrics
+#        step: 10s
+#        headers:
+#          Authorization: "Bearer e10bfb75-56ed-4f69-a790-6d9ff26b"
+#
+#  otlp:
+#    logs:
+#      export:
+#        enabled: true
+#        # ✅ Send logs to the same collector (optional)
+#        endpoint: http://splunk-otel-collector:4318/v1/logs
+#
   zipkin:
     tracing:
       endpoint: http://zipkin:9411/api/v2/spans
-
-  propagation:
-    type: W3C
+#
+#  propagation:
+#    type: W3C
 
 
   observations:
