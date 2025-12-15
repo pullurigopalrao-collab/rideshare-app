@@ -16,6 +16,7 @@
         <module>api-gateway</module>
         <module>user-service</module>
         <module>auth-service</module>
+        <module>config-service</module>
        <!-- <module>owner-service</module>
         <module>ride-service</module>
         <module>booking-service</module>
