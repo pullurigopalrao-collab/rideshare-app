@@ -1,103 +1,19 @@
-server:
-  port: 8082
-  address: 0.0.0.0
-
 spring:
   application:
     name: user-service
 
-  datasource:
-    url: jdbc:postgresql://postgres:5432/user_db
-    username: ${db.username}
-    password: ${db.password}
-    driver-class-name: org.postgresql.Driver
+  config:
+    import:
+      - vault://
+      - optional:configserver:http://config-service:8888
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: Asia/Kolkata
-
-  cache:
-    type: redis
-
-  data:
-    redis:
-      host: redis
-      port: 6379
-      password: ${redis.password}
-      time-to-live: 600000
-
-  kafka:
-    bootstrap-servers: ${kafka.bootstrap}
-
-  security:
-    user:
-      name: admin
-      password: admin
-
-eureka:
-  instance:
-    prefer-ip-address: true
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://service-registry:8761/eureka/
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,loggers,env,trace
-
-  tracing:
-    enabled: true
-    sampling:
-      probability: 1.0
-    exporter:
-      otlp:
-        endpoint: http://splunk-otel-collector:4317
-
-  metrics:
-    export:
-      otlp:
+  cloud:
+    vault:
+      uri: http://vault:8200
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}
+      kv:
         enabled: true
-        endpoint: http://splunk-otel-collector:4318/v1/metrics
-        step: 10s
-        headers:
-          Authorization: "Bearer e10bfb75-56ed-4f69-a790-6d9ff26b"
-
-  otlp:
-    logs:
-      export:
-        enabled: true
-        endpoint: http://splunk-otel-collector:4318/v1/logs
-
-  propagation:
-    type: W3C
-
-  zipkin:
-    tracing:
-      endpoint: http://zipkin:9411/api/v2/spans
-
-logging:
-  file:
-    name: logs/${spring.application.name}.json
-  pattern:
-    level: "%5p [${spring.application.name:}, traceId=%X{traceId:-}, spanId=%X{spanId:-}]"
-  level:
-    root: INFO
-    com.rideshare: INFO
-    org.hibernate.SQL: INFO
-    com.splunk.logging: INFO
-    io.opentelemetry.exporter.otlp: INFO
-    io.micrometer.tracing: INFO
-  logback:
-    rollingpolicy:
-      max-file-size: 10MB
-      max-history: 5
+        backend: rideshare
+        default-context: ${spring.application.name}
+        application-name: application
