@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: config-service
+
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://vault:8200}
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}
+      fail-fast: true
