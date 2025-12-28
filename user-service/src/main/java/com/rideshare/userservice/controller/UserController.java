@@ -48,7 +48,7 @@ public class UserController {
 
     // For Admin to view others' profiles
     @GetMapping("/admin/profile/{mobileNumber}")
-    public UserDto getUserProfileForAdmin(@PathVariable String mobileNumber) {
+    public ResponseEntity<UserDto> getUserProfileForAdmin(@PathVariable String mobileNumber) {
         // Null or blank check
         if (mobileNumber == null || mobileNumber.isBlank()) {
             throw new InvalidMobileNumberException("Mobile number cannot be empty");
@@ -57,7 +57,7 @@ public class UserController {
         if (!mobileNumber.matches(REGEX)) {
             throw new InvalidMobileNumberException("Invalid mobile number format. Must be 10 digits.");
         }
-        return userService.getUserProfile(mobileNumber);
+        return ResponseEntity.ok(userService.getUserProfile(mobileNumber));
     }
 
     // ✅ New fallback endpoint when /admin has no mobile number

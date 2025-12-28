@@ -141,7 +141,7 @@ services:
     command: >
       sh -c "java $JAVA_OPTS -jar /app/app.jar"
   # =========================
-  # User Service  
+  # User Service
   # =========================
   user-service:
     build:
@@ -162,6 +162,7 @@ services:
       config-service: { condition: service_healthy }
     ports:
       - "8082:8082"
+      - "5005:5005" # For remote debugging if needed
     environment:
       # Standard Spring/App Environment Variables
       SPRING_APPLICATION_NAME: user-service
@@ -181,7 +182,8 @@ services:
       JAVA_OPTS: >
         -Xms256m -Xmx512m
         -javaagent:/app/splunk-otel-javaagent.jar
-
+      JAVA_TOOL_OPTIONS: >
+        -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     networks:
       - rideshare-network
     volumes:
