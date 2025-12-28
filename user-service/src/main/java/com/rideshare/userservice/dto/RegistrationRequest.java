@@ -21,6 +21,6 @@ public record RegistrationRequest(
         String mobileNumber,
 
         @NotBlank(message = "Role is required")
-        @Pattern(regexp = "RIDER|OWNER|BOTH", message = "Role must be RIDER, OWNER, or BOTH")
+        @Pattern(regexp = "RIDER|OWNER", message = "Role must be RIDER or OWNER")
         String role
 ) {}

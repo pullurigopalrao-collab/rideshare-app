@@ -2,26 +2,40 @@ package com.rideshare.userservice.repository;
 
 import com.rideshare.userservice.entity.Role;
 import com.rideshare.userservice.entity.User;
+import com.rideshare.userservice.enums.UserStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@ActiveProfiles("test")
 @Testcontainers
-@EnableJpaRepositories(basePackages = "com.rideshare.userservice.repository")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@TestPropertySource(properties = {
+        "spring.config.import=",
+        "spring.cloud.vault.enabled=false"
+})
 class UserRepositoryTest {
+
+    static {
+        System.setProperty("spring.config.import", "");
+        System.setProperty("spring.cloud.bootstrap.enabled", "false");
+        System.setProperty("spring.cloud.vault.enabled", "false");
+    }
+
     @Container
     static final PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:16-alpine")
@@ -53,20 +67,25 @@ class UserRepositoryTest {
     }
 
     @Test
-    void testUserSaveAndFindByMobileNumber() {
+    void findByMobileNumberReturnsUserWhenMobileNumberExists() {
         User user = new User();
-        user.setFirstName("John");
+        user.setFirstName("Jane");
         user.setLastName("Doe");
-        user.setGender("Male");
-        user.setMobileNumber("9999999999");
-        user.setRole(riderRole);
+        user.setGender("Female");
+        user.setMobileNumber("8888888888");
+        user.setStatus(UserStatus.REGISTERED);
 
         User saved = userRepository.save(user);
-        assertThat(saved.getId()).isNotNull();
 
-        User found = userRepository.findByMobileNumber("9999999999").orElse(null);
-        assertThat(found).isNotNull();
-        assertThat(found.getFirstName()).isEqualTo("John");
-        assertThat(found.getRole().getName()).isEqualTo("RIDER");
+        Optional<User> found = userRepository.findByMobileNumber("8888888888");
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(saved.getId());
+        assertThat(found.get().getFirstName()).isEqualTo("Jane");
+    }
+
+    @Test
+    void findByMobileNumberReturnsEmptyWhenMobileNumberDoesNotExist() {
+        Optional<User> found = userRepository.findByMobileNumber("7777777777");
+        assertThat(found).isEmpty();
     }
 }

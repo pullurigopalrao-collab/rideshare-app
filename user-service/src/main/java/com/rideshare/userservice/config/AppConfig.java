@@ -1,7 +1,5 @@
 package com.rideshare.userservice.config;
 
-import com.rideshare.userservice.dto.UserDto;
-import com.rideshare.userservice.entity.User;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.config.Configuration.AccessLevel;
 import org.springframework.context.annotation.Bean;
@@ -18,8 +16,8 @@ public class AppConfig {
                 .setFieldAccessLevel(AccessLevel.PRIVATE);
 
         // 👇 Custom mapping for Role.name → UserDto.role
-        mapper.typeMap(User.class, UserDto.class)
-                .addMappings(m -> m.map(src -> src.getRole().getName(), UserDto::setRole));
+//        mapper.typeMap(User.class, UserDto.class)
+//                .addMappings(m -> m.map(src -> src.getRole().getName(), UserDto::setRole));
         return mapper;
     }
 }

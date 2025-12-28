@@ -4,7 +4,7 @@ spring:
 
   config:
     import:
-      - vault://
+      - optional:vault://
       - optional:configserver:http://config-service:8888
 
   cloud:

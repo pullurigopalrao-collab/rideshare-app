@@ -1,9 +1,15 @@
 package com.rideshare.userservice.entity;
 
+import com.rideshare.userservice.enums.UserStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -24,9 +30,12 @@ public class User {
     @Column(unique = true, nullable = false)
     private String mobileNumber;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserStatus status;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<UserRole> userRoles = new HashSet<>();
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -37,4 +46,12 @@ public class User {
     public void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    @PrePersist
+    public void prePersist() {
+        if (status == null) {
+            status = UserStatus.REGISTERED;
+        }
+    }
+
 }
