@@ -16,6 +16,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -30,8 +32,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-@AutoConfigureMockMvc(addFilters = false) // disable security filters for tests
-class UserControllerTest {
+@ActiveProfiles("test")
+@AutoConfigureMockMvc(addFilters = false) // 🔥 disables Spring Security
+@TestPropertySource(properties = {
+        "spring.cloud.vault.enabled=false",
+        "spring.cloud.bootstrap.enabled=false",
+        "spring.config.import="
+})class UserControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -90,7 +97,7 @@ class UserControllerTest {
 
         // Mock service call
         when(userService.getUserProfile("9999999999"))
-                .thenReturn(new UserDto("John", "Doe", "Male", "9999999999", "BOTH"));
+                .thenReturn(new UserDto("John", "Doe", "Male", "9999999999", List.of("RIDER")));
 
         // Perform the request using MockMvc with a custom SecurityContext
         mockMvc.perform(get("/api/users/profile/me")
@@ -99,7 +106,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("John"))
                 .andExpect(jsonPath("$.lastName").value("Doe"))
-                .andExpect(jsonPath("$.role").value("BOTH"));
+                .andExpect(jsonPath("$.roles").value("RIDER"));
     }
 
     @Test
@@ -116,8 +123,8 @@ class UserControllerTest {
     @Test
     void testGetUsers_ShouldReturnListOfUsers() throws Exception {
         List<UserDto> mockUsers = List.of(
-                new UserDto("John", "Doe", "MALE", "9999999999", "RIDER"),
-                new UserDto("Jane", "Smith", "FEMALE", "8888888888", "OWNER")
+                new UserDto("John", "Doe", "MALE", "9999999999", List.of("RIDER")),
+                new UserDto("Jane", "Smith", "FEMALE", "8888888888", List.of("OWNER"))
         );
 
         when(userService.getAllUsers()).thenReturn(mockUsers);
@@ -125,16 +132,16 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].firstName").value("John"))
-                .andExpect(jsonPath("$[0].role").value("RIDER"))
+                .andExpect(jsonPath("$[0].roles").value("RIDER"))
                 .andExpect(jsonPath("$[1].firstName").value("Jane"))
-                .andExpect(jsonPath("$[1].role").value("OWNER"));
+                .andExpect(jsonPath("$[1].roles").value("OWNER"));
 
         verify(userService, times(1)).getAllUsers();
     }
 
     @Test
     void testGetUserProfile_Success() throws Exception {
-        UserDto mockUser = new UserDto("Gopal", "Rao", "MALE", "9885791402", "RIDER");
+        UserDto mockUser = new UserDto("Gopal", "Rao", "MALE", "9885791402", List.of("RIDER"));
 
         when(userService.getUserProfile("9885791402")).thenReturn(mockUser);
 
@@ -142,19 +149,19 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("Gopal"))
                 .andExpect(jsonPath("$.lastName").value("Rao"))
-                .andExpect(jsonPath("$.role").value("RIDER"));
+                .andExpect(jsonPath("$.roles").value("RIDER"));
     }
 
     @Test
     void testGetUserProfileForAdmin_Success() throws Exception {
-        UserDto mockUser = new UserDto("Lakshmi", "Kumar", "FEMALE", "9876543210", "OWNER");
+        UserDto mockUser = new UserDto("Lakshmi", "Kumar", "FEMALE", "9876543210", List.of("OWNER"));
 
         when(userService.getUserProfile("9876543210")).thenReturn(mockUser);
 
         mockMvc.perform(get("/api/users/admin/profile/9876543210"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("Lakshmi"))
-                .andExpect(jsonPath("$.role").value("OWNER"));
+                .andExpect(jsonPath("$.roles").value("OWNER"));
     }
 
     @Test

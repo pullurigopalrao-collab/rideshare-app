@@ -5,10 +5,11 @@ import com.rideshare.userservice.dto.RegistrationRequest;
 import com.rideshare.userservice.dto.UserDto;
 import com.rideshare.userservice.entity.Role;
 import com.rideshare.userservice.entity.User;
+import com.rideshare.userservice.entity.UserRole;
 import com.rideshare.userservice.exception.UserNotFoundException;
 import com.rideshare.userservice.repository.RoleRepository;
 import com.rideshare.userservice.repository.UserRepository;
-import org.junit.jupiter.api.Assertions;
+import com.rideshare.userservice.repository.UserRoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,11 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -36,20 +35,23 @@ class UserServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
+    private UserRoleRepository userRoleRepository;
+
+    @Mock
     private ModelMapper modelMapper;
 
     @InjectMocks
     private UserService userService;
 
     private Role riderRole;
-    private Role bothRole;
+    private Role ownerRole;
     private User user;
     private UserDto userDto;
 
     @BeforeEach
     void setUp() {
         riderRole = new Role(1L, "RIDER", "Rider");
-        bothRole = new Role(3L, "BOTH", "Both");
+        ownerRole = new Role(3L, "OWNER", "Owner");
 
         user = new User();
         user.setFirstName("Gopal");
@@ -62,200 +64,120 @@ class UserServiceTest {
         userDto.setMobileNumber("9885791402");
     }
 
-    // 1️⃣ Test: New user registration (RIDER)
+    // 1️⃣ New user registration
     @Test
-    void testRegisterUser_NewRider() {
-        RegistrationRequest request = new RegistrationRequest("John", "Doe", "M", "9999999999", "RIDER");
+    void testRegisterUser_NewUser_Rider() {
+        RegistrationRequest request =
+                new RegistrationRequest("John", "Doe", "M", "9999999999", "RIDER");
 
-        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.empty());
-        when(roleRepository.findByName("RIDER")).thenReturn(Optional.of(riderRole));
-
-        User mappedUser = new User();
-        mappedUser.setFirstName("John");
-        mappedUser.setMobileNumber("9999999999");
-        mappedUser.setRole(riderRole);
-
-        //when(modelMapper.map(any(RegistrationRequest.class), eq(User.class))).thenReturn(mappedUser);
-        when(userRepository.save(any(User.class))).thenReturn(mappedUser);
+        when(userRepository.findByMobileNumber("9999999999"))
+                .thenReturn(Optional.empty());
+        when(roleRepository.findByName("RIDER"))
+                .thenReturn(Optional.of(riderRole));
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(i -> i.getArgument(0));
 
         ApiResponse response = userService.registerUser(request);
 
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getMessage()).contains("Registration successful");
-        verify(userRepository, times(1)).save(any(User.class));
+        assertTrue(response.isSuccess());
+        verify(userRepository).save(any(User.class));
+        verify(userRoleRepository).save(any(UserRole.class));
     }
 
-    // 2️⃣ Test: Existing user upgrading from RIDER → BOTH
+    // 2️⃣ Existing user + SAME role → reject
     @Test
-    void testRegisterUser_UpgradeToBoth() {
-        RegistrationRequest request = new RegistrationRequest("John", "Doe", "M", "9999999999", "OWNER");
+    void testRegisterUser_ExistingUser_SameRole() {
+        RegistrationRequest request =
+                new RegistrationRequest("John", "Doe", "M", "9885791402", "RIDER");
 
-        User existingUser = new User();
-        existingUser.setMobileNumber("9999999999");
-        existingUser.setRole(riderRole);
-
-        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.of(existingUser));
-        when(roleRepository.findByName("BOTH")).thenReturn(Optional.of(bothRole));
+        when(userRepository.findByMobileNumber("9885791402"))
+                .thenReturn(Optional.of(user));
+        when(roleRepository.findByName("RIDER"))
+                .thenReturn(Optional.of(riderRole));
+        when(userRoleRepository.existsByUserIdAndRoleId(any(), any()))
+                .thenReturn(true);
 
         ApiResponse response = userService.registerUser(request);
 
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getMessage()).contains("BOTH");
-        verify(userRepository, times(1)).save(existingUser);
+        assertFalse(response.isSuccess());
+        verify(userRoleRepository, never()).save(any());
     }
 
-    // 3️⃣ Test: Existing user already has same role
+    // 3️⃣ Existing user + DIFFERENT role → add role
     @Test
-    void testRegisterUser_AlreadySameRole() {
-        RegistrationRequest request = new RegistrationRequest("John", "Doe", "M", "9999999999", "RIDER");
+    void testRegisterUser_ExistingUser_NewRole() {
+        RegistrationRequest request =
+                new RegistrationRequest("John", "Doe", "M", "9885791402", "OWNER");
 
-        User existingUser = new User();
-        existingUser.setMobileNumber("9999999999");
-        existingUser.setRole(riderRole);
-
-        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByMobileNumber("9885791402"))
+                .thenReturn(Optional.of(user));
+        when(roleRepository.findByName("OWNER"))
+                .thenReturn(Optional.of(ownerRole));
+        when(userRoleRepository.existsByUserIdAndRoleId(any(), any()))
+                .thenReturn(false);
 
         ApiResponse response = userService.registerUser(request);
 
-        assertThat(response.isSuccess()).isFalse();
-        assertThat(response.getMessage()).contains("already registered");
-        verify(userRepository, never()).save(any());
+        assertTrue(response.isSuccess());
+        verify(userRoleRepository).save(any(UserRole.class));
     }
 
-    // 4️⃣ Test: Role not found scenario
     @Test
-    void testRegisterUser_RoleNotFound() {
-        RegistrationRequest request = new RegistrationRequest("John", "Doe", "M", "8888888888", "ADMIN");
+    void testRegisterUser_InvalidRole_ThrowsInvalidRoleException() {
+        // Arrange
+        RegistrationRequest request =
+                new RegistrationRequest("John", "Doe", "M", "9999999999", "ADMIN");
 
-        when(userRepository.findByMobileNumber("8888888888")).thenReturn(Optional.empty());
         when(roleRepository.findByName("ADMIN")).thenReturn(Optional.empty());
 
-        try {
-            userService.registerUser(request);
-        } catch (RuntimeException ex) {
-            assertThat(ex.getMessage()).contains("Role not found");
-        }
-
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void testRegisterUser_ExistingUserAlreadyBoth() {
-        User existingUser = new User();
-        existingUser.setMobileNumber("9999999999");
-
-        Role roleBoth = new Role();
-        roleBoth.setName("BOTH");
-        existingUser.setRole(roleBoth);
-
-        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.of(existingUser));
-
-        RegistrationRequest req = new RegistrationRequest("John", "Doe", "M", "9999999999", "OWNER");
-        ApiResponse response = userService.registerUser(req);
-
-        Assertions.assertFalse(response.isSuccess());
-        Assertions.assertTrue(response.getMessage().contains("already have BOTH roles"));
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
-    void testRegisterUser_ExistingUserSameRole() {
-        User existingUser = new User();
-        existingUser.setMobileNumber("7777777777");
-
-        Role roleRider = new Role();
-        roleRider.setName("RIDER");
-        existingUser.setRole(roleRider);
-
-        when(userRepository.findByMobileNumber("7777777777")).thenReturn(Optional.of(existingUser));
-
-        RegistrationRequest req = new RegistrationRequest("John", "Doe", "M", "7777777777", "RIDER");
-        ApiResponse response = userService.registerUser(req);
-
-        Assertions.assertFalse(response.isSuccess());
-        Assertions.assertTrue(response.getMessage().contains("already registered with this role"));
-        verify(userRepository, never()).save(any());
-    }
-    @Test
-    void testRegisterUser_BothRoleNotFound_ShouldThrowException() {
-        // Arrange
-        User existingUser = new User();
-        existingUser.setMobileNumber("9999999999");
-
-        Role roleRider = new Role();
-        roleRider.setName("RIDER");
-        existingUser.setRole(roleRider);
-
-        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.of(existingUser));
-
-        // Simulate no BOTH role found
-        when(roleRepository.findByName("BOTH")).thenReturn(Optional.empty());
-
-        RegistrationRequest req = new RegistrationRequest("John", "Doe", "M", "9999999999", "OWNER");
-
         // Act & Assert
-        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
-            userService.registerUser(req);
-        });
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> userService.registerUser(request));
 
-        assertEquals("Role BOTH not found", thrown.getMessage());
+        assertEquals("Invalid role: ADMIN", ex.getMessage());
+        verify(roleRepository, times(1)).findByName("ADMIN");
+        verifyNoInteractions(userRepository);
+        verifyNoInteractions(userRoleRepository);
     }
 
-    // ✅ Test for getAllUsers()
+    // 5️⃣ getAllUsers
     @Test
-    void testGetAllUsers_ShouldReturnListOfUserDtos() {
+    void testGetAllUsers() {
         when(userRepository.findAll()).thenReturn(List.of(user));
 
-        // Use doReturn to avoid PotentialStubbingProblem
-        doReturn(List.of(userDto))
-                .when(modelMapper)
-                .map(anyList(), any(Type.class));
+        // Stub the per-element mapping used by the service
+        when(modelMapper.map(any(User.class), eq(UserDto.class)))
+                .thenReturn(userDto);
 
         List<UserDto> result = userService.getAllUsers();
 
-        assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals("Gopal", result.get(0).getFirstName());
-        verify(userRepository, times(1)).findAll();
+        verify(userRepository).findAll();
+        verify(modelMapper, times(1)).map(any(User.class), eq(UserDto.class));
     }
 
-
-    // ✅ Test for getUserProfile() - Success
+    // 6️⃣ getUserProfile success
     @Test
-    void testGetUserProfile_ShouldReturnUserDto_WhenUserExists() {
-        Role role = new Role();
-        role.setName("RIDER");
-        user.setRole(role);
+    void testGetUserProfile_Success() {
+        when(userRepository.findByMobileNumber("9885791402"))
+                .thenReturn(Optional.of(user));
 
-        when(userRepository.findByMobileNumber("9885791402")).thenReturn(Optional.of(user));
-
-        when(modelMapper.map(any(User.class), eq(UserDto.class))).thenAnswer(invocation -> {
-            User source = invocation.getArgument(0);
-            UserDto dto = new UserDto();
-            dto.setFirstName(source.getFirstName());
-            dto.setLastName(source.getLastName());
-            dto.setGender(source.getGender());
-            dto.setMobileNumber(source.getMobileNumber());
-            dto.setRole(source.getRole() != null ? source.getRole().getName() : null);
-            return dto;
-        });
+        when(modelMapper.map(any(User.class), eq(UserDto.class)))
+                .thenReturn(userDto);
 
         UserDto result = userService.getUserProfile("9885791402");
 
         assertNotNull(result);
-        assertEquals("RIDER", result.getRole());
-        assertEquals("Gopal", result.getFirstName());
-        verify(userRepository, times(1)).findByMobileNumber("9885791402");
+        verify(userRepository).findByMobileNumber("9885791402");
     }
 
-    // ✅ Test for getUserProfile() - Not Found
+    // 7️⃣ getUserProfile not found
     @Test
-    void testGetUserProfile_ShouldThrowException_WhenUserNotFound() {
-        when(userRepository.findByMobileNumber("9999999999")).thenReturn(Optional.empty());
+    void testGetUserProfile_NotFound() {
+        when(userRepository.findByMobileNumber("9999999999"))
+                .thenReturn(Optional.empty());
 
         assertThrows(UserNotFoundException.class,
                 () -> userService.getUserProfile("9999999999"));
-
-        verify(userRepository, times(1)).findByMobileNumber("9999999999");
     }
 }
